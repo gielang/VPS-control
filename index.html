@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPS Control Panel</title>
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --bg2: #131316;
+    --bg3: #1a1a1f;
+    --border: #2a2a33;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+  h1 { font-size: 1.5rem; font-weight: 700; }
+  h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: var(--accent2); letter-spacing: .04em; text-transform: uppercase; }
+  header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px; padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { width: 38px; height: 38px; background: var(--accent); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.offline { background: var(--red); }
+  .status-dot.busy { background: var(--yellow); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* token bar */
+  #token-bar {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 20px; margin-bottom: 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  #token-bar label { font-size: .85rem; color: var(--muted); white-space: nowrap; }
+  #token-input {
+    flex: 1; min-width: 220px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: .9rem;
+    font-family: monospace;
+  }
+  #token-input:focus { outline: none; border-color: var(--accent); }
+  #vm-select {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; color: var(--text); font-size: .9rem; min-width: 180px;
+  }
+
+  /* grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px;
+  }
+
+  /* stat rows */
+  .stat-row { display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .875rem; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: var(--muted); }
+  .stat-value { font-weight: 500; font-family: monospace; }
+
+  /* buttons */
+  .btn {
+    border: none; border-radius: 7px; padding: 9px 16px; font-size: .875rem;
+    font-weight: 600; cursor: pointer; transition: opacity .15s, transform .1s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { opacity: .88; }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-green { background: #166534; color: var(--green); border: 1px solid var(--green); }
+  .btn-red { background: #7f1d1d; color: var(--red); border: 1px solid var(--red); }
+  .btn-yellow { background: #78350f; color: var(--yellow); border: 1px solid var(--yellow); }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-sm { padding: 6px 12px; font-size: .8rem; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+  /* form inputs */
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 5px; }
+  .form-group input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 9px 12px; color: var(--text); font-size: .9rem;
+  }
+  .form-group input:focus { outline: none; border-color: var(--accent); }
+
+  /* snapshot card */
+  .snapshot-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; margin-top: 12px;
+  }
+  .snapshot-card .snap-row { display: flex; justify-content: space-between; align-items: center; }
+  .snap-label { font-size: .8rem; color: var(--muted); }
+  .snap-value { font-size: .875rem; font-weight: 500; }
+
+  /* actions log */
+  .action-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: .85rem;
+  }
+  .action-item:last-child { border-bottom: none; }
+  .action-status { padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 600; white-space: nowrap; }
+  .action-status.completed { background: #14532d; color: var(--green); }
+  .action-status.failed { background: #7f1d1d; color: var(--red); }
+  .action-status.pending, .action-status.running { background: #78350f; color: var(--yellow); }
+  .action-meta { color: var(--muted); font-size: .75rem; margin-top: 2px; }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px;
+    font-size: .875rem; max-width: 320px; z-index: 999;
+    transform: translateY(80px); opacity: 0; transition: all .3s;
+    display: flex; gap: 10px; align-items: center;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: var(--green); }
+  #toast.error { border-color: var(--red); }
+  #toast.info { border-color: var(--accent); }
+
+  /* empty / loading states */
+  .empty { text-align: center; color: var(--muted); padding: 24px; font-size: .875rem; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--muted);
+    border-top-color: var(--accent2); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge { font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: var(--bg3); border: 1px solid var(--border); }
+  .badge.running { color: var(--green); border-color: var(--green); }
+  .badge.stopped { color: var(--red); border-color: var(--red); }
+  .badge.busy { color: var(--yellow); border-color: var(--yellow); }
+
+  footer { margin-top: 36px; text-align: center; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡</div>
+  <div>
+    <h1>VPS Control Panel</h1>
+    <div style="font-size:.8rem;color:var(--muted)" id="site-label">Hostinger VPS</div>
+  </div>
+  <div class="header-right">
+    <span class="status-dot" id="conn-dot"></span>
+    <span id="conn-label" style="font-size:.85rem;color:var(--muted)">Not connected</span>
+  </div>
+</header>
+
+<!-- Token + VM selector -->
+<div id="token-bar">
+  <label>Proxy URL:</label>
+  <input type="text" id="proxy-input" placeholder="https://YOUR_VPS_IP:8080" autocomplete="off" style="flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-size:.9rem;font-family:monospace;">
+  <label>API Token:</label>
+  <input type="password" id="token-input" placeholder="Bearer token from Hostinger panel" autocomplete="off">
+  <select id="vm-select"><option value="">— load VMs —</option></select>
+  <button class="btn btn-primary" onclick="loadVMs()">Connect</button>
+  <button class="btn btn-outline" onclick="refreshAll()" id="refresh-btn" disabled>↻ Refresh</button>
+</div>
+
+<div class="grid" id="main-grid" style="display:none">
+
+  <!-- Status card -->
+  <div class="card">
+    <div class="section-header">
+      <h2>Status</h2>
+      <span class="badge" id="vm-state-badge">—</span>
+    </div>
+    <div id="status-rows"><div class="empty">No data</div></div>
+  </div>
+
+  <!-- Power controls -->
+  <div class="card">
+    <h2>Power Controls</h2>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Manage the power state of your virtual machine.</p>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="doAction('start')">▶ Start</button>
+      <button class="btn btn-red" onclick="doAction('stop')">⏹ Stop</button>
+      <button class="btn btn-yellow" onclick="doAction('restart')">↻ Restart</button>
+    </div>
+    <div id="action-result" style="margin-top:14px;font-size:.82rem;color:var(--muted)"></div>
+  </div>
+
+  <!-- Snapshot -->
+  <div class="card">
+    <div class="section-header">
+      <h2>Snapshot</h2>
+      <button class="btn btn-outline btn-sm" onclick="loadSnapshot()">↻ Refresh</button>
+    </div>
+    <div id="snapshot-area"><div class="empty">Click refresh to load snapshot info</div></div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="createSnapshot()">📸 Create Snapshot</button>
+      <button class="btn btn-red btn-sm" id="delete-snap-btn" onclick="deleteSnapshot()" style="display:none">🗑 Delete</button>
+      <button class="btn btn-yellow btn-sm" id="restore-snap-btn" onclick="restoreSnapshot()" style="display:none">⟲ Restore</button>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <h2>Settings</h2>
+    <div class="form-group">
+      <label>Hostname</label>
+      <input type="text" id="hostname-input" placeholder="e.g. srv1948979.hstgr.cloud">
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="setHostname()">Set Hostname</button>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+
+    <div class="form-group">
+      <label>New Root Password</label>
+      <input type="password" id="password-input" placeholder="Min 8 chars, mixed case + number">
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="setRootPassword()">Set Root Password</button>
+  </div>
+
+  <!-- Actions log -->
+  <div class="card" style="grid-column: 1 / -1">
+    <div class="section-header">
+      <h2>Recent Actions</h2>
+      <button class="btn btn-outline btn-sm" onclick="loadActions()">↻ Refresh</button>
+    </div>
+    <div id="actions-list"><div class="empty">No actions loaded</div></div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<footer>VPS Control Panel · Settings saved locally in your browser</footer>
+
+<script>
+let vmId = null;
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function token() { return document.getElementById('token-input').value.trim(); }
+function proxyBase() { return document.getElementById('proxy-input').value.trim().replace(/\/$/, ''); }
+
+async function apiFetch(path, method = 'GET', body = null) {
+  const base = proxyBase();
+  if (!base) { toast('Please enter the Proxy URL', 'error'); throw new Error('No proxy URL'); }
+  const proxyUrl = base + '/proxy?path=' + encodeURIComponent(path);
+  const opts = {
+    method,
+    headers: {
+      'Authorization': 'Bearer ' + token(),
+      'Content-Type': 'application/json',
+    },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(proxyUrl, opts);
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = j.message || j.error || msg; } catch {}
+    throw new Error(msg);
+  }
+  try { return await res.json(); } catch { return {}; }
+}
+
+function toast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = '', 3500);
+}
+
+function setConnected(ok) {
+  const dot = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  dot.className = 'status-dot ' + (ok ? 'online' : 'offline');
+  label.textContent = ok ? 'Connected' : 'Disconnected';
+}
+
+function saveSettings() {
+  const t = token();
+  const p = proxyBase();
+  if (t) localStorage.setItem('hst_token', t);
+  if (p) localStorage.setItem('hst_proxy', p);
+}
+
+// ── Load VMs ──────────────────────────────────────────────────────────────────
+async function loadVMs() {
+  const t = token();
+  if (!t) { toast('Please enter your API token', 'error'); return; }
+  if (!proxyBase()) { toast('Please enter the Proxy URL', 'error'); return; }
+  saveSettings();
+
+  const sel = document.getElementById('vm-select');
+  sel.innerHTML = '<option>Loading…</option>';
+
+  try {
+    const data = await apiFetch('/api/vps/v1/virtual-machines');
+    const vms = data.data || data;
+    sel.innerHTML = '';
+    vms.forEach(vm => {
+      const opt = document.createElement('option');
+      opt.value = vm.id;
+      opt.textContent = `${vm.hostname || vm.name || vm.id} (${vm.main_ip_v4 || ''})`;
+      sel.appendChild(opt);
+    });
+
+    vmId = sel.value;
+    sel.addEventListener('change', () => { vmId = sel.value; refreshAll(); });
+    setConnected(true);
+    document.getElementById('main-grid').style.display = 'grid';
+    document.getElementById('refresh-btn').disabled = false;
+    refreshAll();
+  } catch(e) {
+    setConnected(false);
+    toast('Failed to load VMs: ' + e.message, 'error');
+    sel.innerHTML = '<option value="">— load VMs —</option>';
+  }
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  if (!vmId) return;
+  const el = document.getElementById('status-rows');
+  el.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const data = await apiFetch(`/api/vps/v1/virtual-machines/${vmId}`);
+    const vm = data.data || data;
+    const state = (vm.state || vm.status || '').toLowerCase();
+    const badge = document.getElementById('vm-state-badge');
+    badge.textContent = state || '—';
+    badge.className = 'badge ' + (
+      state === 'running' ? 'running' :
+      state === 'stopped' ? 'stopped' : 'busy'
+    );
+
+    const dot = document.getElementById('conn-dot');
+    dot.className = 'status-dot ' + (state === 'running' ? 'online' : state === 'stopped' ? 'offline' : 'busy');
+
+    const rows = [
+      ['Hostname', vm.hostname || '—'],
+      ['State', vm.state || vm.status || '—'],
+      ['IPv4', vm.main_ip_v4 || '—'],
+      ['IPv6', vm.main_ip_v6 || '—'],
+      ['OS', vm.template?.name || vm.os || '—'],
+      ['CPU', vm.cpus ? `${vm.cpus} vCPU` : '—'],
+      ['RAM', vm.memory ? `${vm.memory} MB` : '—'],
+      ['Disk', vm.disk ? `${vm.disk} GB` : '—'],
+      ['Location', vm.datacenter?.location || vm.location || '—'],
+      ['ID', vm.id],
+    ];
+
+    el.innerHTML = rows.map(([k, v]) =>
+      `<div class="stat-row">
+        <span class="stat-label">${k}</span>
+        <span class="stat-value">${v}</span>
+      </div>`
+    ).join('');
+
+    // pre-fill hostname field
+    if (vm.hostname) document.getElementById('hostname-input').value = vm.hostname;
+  } catch(e) {
+    el.innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+// ── Power actions ─────────────────────────────────────────────────────────────
+async function doAction(action) {
+  if (!vmId) { toast('No VM selected', 'error'); return; }
+  const labels = { start: 'Starting', stop: 'Stopping', restart: 'Restarting' };
+  const result = document.getElementById('action-result');
+  result.innerHTML = `<span class="spinner"></span> ${labels[action]} VM…`;
+  try {
+    const pathMap = {
+      start: `/api/vps/v1/virtual-machines/${vmId}/start`,
+      stop:  `/api/vps/v1/virtual-machines/${vmId}/stop`,
+      restart: `/api/vps/v1/virtual-machines/${vmId}/restart`,
+    };
+    await apiFetch(pathMap[action], 'POST');
+    toast(`${action.charAt(0).toUpperCase()+action.slice(1)} command sent`, 'success');
+    result.textContent = `✔ ${action} command accepted. Status will update shortly.`;
+    setTimeout(loadStatus, 3000);
+    setTimeout(loadActions, 2000);
+  } catch(e) {
+    result.innerHTML = `<span style="color:var(--red)">✘ ${e.message}</span>`;
+    toast('Action failed: ' + e.message, 'error');
+  }
+}
+
+// ── Snapshot ──────────────────────────────────────────────────────────────────
+async function loadSnapshot() {
+  if (!vmId) return;
+  const area = document.getElementById('snapshot-area');
+  area.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const data = await apiFetch(`/api/vps/v1/virtual-machines/${vmId}/snapshot`);
+    const snap = data.data || data;
+    if (!snap || !snap.id) {
+      area.innerHTML = '<div class="empty">No snapshot exists for this VM.</div>';
+      document.getElementById('delete-snap-btn').style.display = 'none';
+      document.getElementById('restore-snap-btn').style.display = 'none';
+      return;
+    }
+    area.innerHTML = `
+      <div class="snapshot-card">
+        <div class="snap-row">
+          <span class="snap-label">Created</span>
+          <span class="snap-value">${snap.created_at ? new Date(snap.created_at).toLocaleString() : '—'}</span>
+        </div>
+        <div class="snap-row" style="margin-top:8px">
+          <span class="snap-label">Size</span>
+          <span class="snap-value">${snap.size ? (snap.size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '—'}</span>
+        </div>
+        <div class="snap-row" style="margin-top:8px">
+          <span class="snap-label">State</span>
+          <span class="snap-value">${snap.state || '—'}</span>
+        </div>
+      </div>`;
+    document.getElementById('delete-snap-btn').style.display = 'inline-flex';
+    document.getElementById('restore-snap-btn').style.display = 'inline-flex';
+  } catch(e) {
+    // 404 means no snapshot
+    if (e.message.includes('404') || e.message.includes('not found')) {
+      area.innerHTML = '<div class="empty">No snapshot exists for this VM.</div>';
+      document.getElementById('delete-snap-btn').style.display = 'none';
+      document.getElementById('restore-snap-btn').style.display = 'none';
+    } else {
+      area.innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+    }
+  }
+}
+
+async function createSnapshot() {
+  if (!vmId) return;
+  if (!confirm('Create a new snapshot? If one already exists it will be overwritten.')) return;
+  toast('Creating snapshot…', 'info');
+  try {
+    await apiFetch(`/api/vps/v1/virtual-machines/${vmId}/snapshot`, 'POST');
+    toast('Snapshot creation started', 'success');
+    setTimeout(loadSnapshot, 4000);
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+async function deleteSnapshot() {
+  if (!vmId) return;
+  if (!confirm('Delete the snapshot? This cannot be undone.')) return;
+  toast('Deleting snapshot…', 'info');
+  try {
+    await apiFetch(`/api/vps/v1/virtual-machines/${vmId}/snapshot`, 'DELETE');
+    toast('Snapshot deleted', 'success');
+    loadSnapshot();
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+async function restoreSnapshot() {
+  if (!vmId) return;
+  if (!confirm('Restore snapshot? The VM will revert to the snapshot state. Current data may be lost.')) return;
+  toast('Restoring snapshot…', 'info');
+  try {
+    await apiFetch(`/api/vps/v1/virtual-machines/${vmId}/snapshot/restore`, 'POST');
+    toast('Snapshot restore started', 'success');
+    setTimeout(loadStatus, 5000);
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+async function setHostname() {
+  if (!vmId) return;
+  const val = document.getElementById('hostname-input').value.trim();
+  if (!val) { toast('Enter a hostname', 'error'); return; }
+  try {
+    await apiFetch(`/api/vps/v1/virtual-machines/${vmId}/hostname`, 'PUT', { hostname: val });
+    toast('Hostname updated', 'success');
+    setTimeout(loadStatus, 2000);
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+async function setRootPassword() {
+  if (!vmId) return;
+  const val = document.getElementById('password-input').value;
+  if (!val || val.length < 8) { toast('Password must be at least 8 characters', 'error'); return; }
+  if (!confirm('Set new root password for this VM?')) return;
+  try {
+    await apiFetch(`/api/vps/v1/virtual-machines/${vmId}/root-password`, 'PUT', { password: val });
+    toast('Root password updated', 'success');
+    document.getElementById('password-input').value = '';
+  } catch(e) { toast('Failed: ' + e.message, 'error'); }
+}
+
+// ── Actions log ───────────────────────────────────────────────────────────────
+async function loadActions() {
+  if (!vmId) return;
+  const el = document.getElementById('actions-list');
+  el.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  try {
+    const data = await apiFetch(`/api/vps/v1/virtual-machines/${vmId}/actions?per_page=15`);
+    const items = data.data || data;
+    if (!items || !items.length) {
+      el.innerHTML = '<div class="empty">No actions recorded</div>';
+      return;
+    }
+    el.innerHTML = items.map(a => {
+      const state = (a.state || a.status || 'unknown').toLowerCase();
+      const time = a.created_at ? new Date(a.created_at).toLocaleString() : '';
+      return `
+        <div class="action-item">
+          <div>
+            <div style="font-weight:500">${a.type || a.name || 'Action'}</div>
+            <div class="action-meta">${time}</div>
+          </div>
+          <span class="action-status ${state}">${state}</span>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+// ── Refresh all ───────────────────────────────────────────────────────────────
+function refreshAll() {
+  vmId = document.getElementById('vm-select').value;
+  if (!vmId) return;
+  loadStatus();
+  loadSnapshot();
+  loadActions();
+}
+
+// ── Init: restore settings from localStorage ──────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const savedToken = localStorage.getItem('hst_token');
+  const savedProxy = localStorage.getItem('hst_proxy');
+  if (savedToken) document.getElementById('token-input').value = savedToken;
+  if (savedProxy) document.getElementById('proxy-input').value = savedProxy;
+  // auto-connect if both are stored
+  if (savedToken && savedProxy) loadVMs();
+});
+</script>
+</body>
+</html>
